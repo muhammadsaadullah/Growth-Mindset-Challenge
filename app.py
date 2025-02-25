@@ -1,15 +1,33 @@
 import streamlit as st
 import pandas as pd
 import os
+from PIL import Image
 from io import BytesIO
 
 
 st.set_page_config(page_title="💽 Data Sweeper", layout='wide')
+dark_mode = st.toggle("🌙 Enable Dark Mode")
 st.title("💽 Data Sweeper")
 st.write("Transform your files between CSV and Excel formats within built-in data cleaning and visualiation!")
 
 uploaded_file = st.file_uploader("Upload your files (CSV or Excel):", type=["csv", "xlsx"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload Images", type=["png", "jpg", "jpeg", "bmp", "gif"], accept_multiple_files=True)
 
+
+
+
+if dark_mode:
+    dark_css = """
+    <style>
+    body { background-color: #121212; color: white; }
+    .stApp { background-color: #121212; color: white; }
+    .stButton>button { background-color: #333333; color: white; }
+    .stDownloadButton>button { background-color: #333333; color: white; }
+    .stTextInput>div>div>input { background-color: #333333; color: white; }
+    .stMultiSelect>div>div>div>input { background-color: #333333; color: white; }
+    </style>
+    """
+    st.markdown(dark_css, unsafe_allow_html=True)
 
 if uploaded_file:
     for file in uploaded_file:
@@ -26,7 +44,7 @@ if uploaded_file:
 
         # Display info about teh file
         st.write(f"**File Name:** {file.name}")
-        st.write(f"**File Size:** {file.size/1024}")
+        st.write(f"**File Size:** {file.size / 1024:.2f} KB")
 
         # Show 5 rows of our df
         st.write("🔍Preview the Head of the Dataframe")
@@ -81,6 +99,39 @@ if uploaded_file:
                 data=buffer,
                 file_name=file.name,
                 mime=mime_type
+            )
+
+if uploaded_files:
+    for uploaded_file in uploaded_files:
+        image = Image.open(uploaded_file)
+
+        # Resize image preview
+        preview_size = (100, 200)  # Small preview size
+        img_preview = image.copy()
+        img_preview.thumbnail(preview_size)
+
+        st.image(img_preview, caption=f"Uploaded Image: {uploaded_file.name}", use_container_width=False)
+
+        # Dropdown for format selection
+        format_options = ["PNG", "JPEG", "BMP", "GIF"]
+        selected_format = st.selectbox(f"Select Output Format for {uploaded_file.name}", format_options, key=uploaded_file.name)
+
+        # Convert and Download Button
+        if st.button(f"Convert {uploaded_file.name}", key=f"convert_{uploaded_file.name}"):
+            img_byte_arr = BytesIO()
+            
+            # Convert image mode if saving as JPEG
+            if selected_format == "JPEG" and image.mode == "RGBA":
+                image = image.convert("RGB")
+            
+            image.save(img_byte_arr, format=selected_format)
+            img_byte_arr = img_byte_arr.getvalue()
+
+            st.download_button(
+                label=f"Download {uploaded_file.name} as {selected_format}",
+                data=img_byte_arr,
+                file_name=f"{uploaded_file.name.split('.')[0]}.{selected_format.lower()}",
+                mime=f"image/{selected_format.lower()}",
             )
 
 st.success("🎉 All files processed!")
